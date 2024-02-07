@@ -30,7 +30,23 @@ const shouldUpdateNickname = async () => {
     const date = new Date();
     const day = date.getDay();
 
-    return day === WEEK_DAYS.wednesday || day === WEEK_DAYS.saturday;
+    const lastUpdateDate = localStorage.getItem('nicknameUpdatedAt');
+    
+    const numberOfDaysSinceLastUpdate = 
+        await getNumberOfDaysPassedSince(lastUpdateDate);
+        
+    console.log('last update date:', lastUpdateDate);
+    console.log('number of days since last update:', numberOfDaysSinceLastUpdate);
+
+    if (
+        day === WEEK_DAYS.wednesday || 
+        numberOfDaysSinceLastUpdate >= 4 || 
+        day === WEEK_DAYS.saturday
+    ) {
+        return true;
+    }
+
+    return false;
 }
 
 const getData = async () => {
@@ -100,8 +116,8 @@ const getCurrentNickname = async (nicknames) => {
 
     if (currentNickname) {
         localStorage.setItem('currentNickname', currentNickname);
+        localStorage.setItem('nicknameUpdatedAt', new Date().toDateString());
         return currentNickname;
-
     }
     
     return localStorage.getItem('currentNickname');
@@ -137,11 +153,11 @@ const updateMoment = async (moments) => {
     momentContent.textContent = await getCurrentMoment(moments);
 }
 
-const updateNickname = async () => {
+const updateNickname = async (nicknames) => {
     const nicknameBox = document.querySelector('#nickname');
     const nicknameContent = nicknameBox.lastElementChild;
 
-    nicknameContent.textContent = await getCurrentNickname();
+    nicknameContent.textContent = await getCurrentNickname(nicknames);
 }
 
 const main = async () => {
