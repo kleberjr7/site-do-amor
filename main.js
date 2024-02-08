@@ -35,7 +35,7 @@ const shouldUpdateNickname = async () => {
     const numberOfDaysSinceLastUpdate = 
         await getNumberOfDaysPassedSince(lastUpdateDate);
         
-    console.log('last update date:', lastUpdateDate);
+    console.log('last nickname update date:', lastUpdateDate);
     console.log('number of days since last update:', numberOfDaysSinceLastUpdate);
 
     if (
@@ -86,41 +86,40 @@ const getCurrentMoment = async (moments) => {
     return moments[indexMod42];
 }
 
-const getCurrentNickname = async (nicknames) => {
-    const date = new Date();
+const getNewNickname = async (nicknames) => {
+    const currentDate = new Date();
     const currentYear = await getCurrentYear();
-    const day = date.getDay();
+    const currentDay = currentDate.getDay();
+
+    const numberOfDaysSinceFirstWednesday = 
+        await getNumberOfDaysPassedSince(`01/03/${currentYear}`);
+    const numberOfDaysSinceFirstSaturday = 
+        await getNumberOfDaysPassedSince(`01/06/${currentYear}`);
+    const howFarFromWednesday = currentDay - WEEK_DAYS.wednesday;
 
     let currentNickname = '';
     let idx = 0;
 
-    switch(day) {
+    switch(currentDay) {
         case WEEK_DAYS.wednesday:
-            const numberOfDaysSinceFirstWednesday = 
-                await getNumberOfDaysPassedSince(`01/03/${currentYear}`);
-
             idx = Math.floor(numberOfDaysSinceFirstWednesday / 7) % 6;
-            
             currentNickname = nicknames.wednesday[idx];
             break;
         case WEEK_DAYS.saturday:
-            const numberOfDaysSinceFirstSaturday = 
-                await getNumberOfDaysPassedSince(`01/06/${currentYear}`);
-
             idx = Math.floor(numberOfDaysSinceFirstSaturday / 7) % 6;
-            
             currentNickname = nicknames.saturday[idx];
             break;
         default:
-    }
-
-    if (currentNickname) {
-        localStorage.setItem('currentNickname', currentNickname);
-        localStorage.setItem('nicknameUpdatedAt', new Date().toDateString());
-        return currentNickname;
+            if (howFarFromWednesday > 0) {
+                idx = Math.floor(numberOfDaysSinceFirstWednesday / 7) % 6;
+                currentNickname = nicknames.wednesday[idx];
+            } else {
+                idx = Math.floor(numberOfDaysSinceFirstSaturday / 7) % 6;
+                currentNickname = nicknames.saturday[idx];
+            }
     }
     
-    return localStorage.getItem('currentNickname');
+    return currentNickname;
 }
 
 const updateGreeting = async () => {
@@ -139,25 +138,33 @@ const updateGreeting = async () => {
     }
 }
 
-const updateReasonsWhy = async (reasonsWhy) => {
+const loadReasonWhy = async (reasonsWhy) => {
     const reasonWhyBox = document.querySelector('#reasons-why');
     const reasonWhyContent = reasonWhyBox.lastElementChild;
 
     reasonWhyContent.textContent = await getCurrentReasonWhy(reasonsWhy);
 }
 
-const updateMoment = async (moments) => {
+const loadMoment = async (moments) => {
     const momentBox = document.querySelector('#moments');
     const momentContent = momentBox.lastElementChild;
 
     momentContent.textContent = await getCurrentMoment(moments);
 }
 
-const updateNickname = async (nicknames) => {
+const loadNickname = async (nicknames) => {
+    let currentNickname = localStorage.getItem('currentNickname');
+    
+    if (await shouldUpdateNickname()) {
+        currentNickname = await getNewNickname(nicknames);
+        localStorage.setItem('currentNickname', currentNickname);
+        localStorage.setItem('nicknameUpdatedAt', new Date().toDateString());
+    }
+
     const nicknameBox = document.querySelector('#nickname');
     const nicknameContent = nicknameBox.lastElementChild;
 
-    nicknameContent.textContent = await getCurrentNickname(nicknames);
+    nicknameContent.textContent = currentNickname;
 }
 
 const main = async () => {
@@ -165,12 +172,9 @@ const main = async () => {
 
     await updateGreeting();
 
-    if (await shouldUpdateNickname()) {
-        await updateNickname(data.nicknames);
-    }
-
-    await updateMoment(data.moments);
-    await updateReasonsWhy(data.reasonsWhy);
+    await loadNickname(data.nicknames);
+    await loadMoment(data.moments);
+    await loadReasonWhy(data.reasonsWhy);
 
     const reasonWhyBox = document.querySelector('#reasons-why');
     const momentBox = document.querySelector('#moments');
